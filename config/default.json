@@ -1,0 +1,20 @@
+{
+    "server": {
+        "host": "localhost",
+        "port": 8080
+    },
+
+    "contenttypes": {
+        "image/x-icon": "image/x-icon",
+        "image/png": "image/png"
+    },
+
+    "cache": "/tmp/favicon-as-a-server",
+    "headers": { 
+        "cache-control": "max-age=0",
+        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_2) AppleWebKit/537.35 (KHTML, like Gecko) Chrome/27.0.1444.3 Safari/537.35",
+        "accept-encoding": "gzip,deflate,sdch",
+        "accept-language": "en-US,en;q=0.8" 
+    }
+}

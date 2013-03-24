@@ -6,15 +6,19 @@
         deferred = require('deferred'),
         htmlparser = require('htmlparser2'),
         config = require('config'),
-        liburl = require('url'),
-        zlib = require('zlib'),
         _ = require('underscore'),
+
+        liburl = require('url'),
+        libfs = require('fs'),
+        libpath = require('path'),
+        libzlib = require('zlib'),
 
         protocols = {
             http: require('http'),
             https: require('https')
         },
         
+        defaultFavicon,
         app = express();
 
     function addProtocolToUrl(orgUrl){
@@ -40,7 +44,7 @@
         return {
             buffer: data,
             length: data.length,
-            mimetype: contenttype
+            contenttype: contenttype
         };
     }
 
@@ -79,7 +83,7 @@
                                 def.resolve({
                                     buffer: Buffer.concat(chunks, length),
                                     length: length,
-                                    mimetype: contenttype, 
+                                    contenttype: contenttype, 
                                     url: url
                                 });
                             });
@@ -121,6 +125,11 @@
 
                     def.resolve({});
 
+                }).setTimeout(config.timeout.favicon, function () {
+                    console.log('Timeout favicon', liburl.format(url));
+
+                    def.resolve({});
+                    this.end();
                 });
             };
 
@@ -131,7 +140,7 @@
 
     function getPage(pageUrl) {
         var def = deferred(),
-            faviconsList = [],
+            todoList = [],
 
             parser = new htmlparser.Parser({
                 onopentag: function(name, attribs){
@@ -148,7 +157,7 @@
                             if((contenttype = orgUrl.match(regexp))){
                                 // base64
                                 if(config.contenttypes[contenttype]){
-                                    faviconsList.push(getBase64Favicon(orgUrl, contenttype));
+                                    todoList.push(getBase64Favicon(orgUrl, contenttype));
                                 }
 
                             } else {
@@ -159,7 +168,7 @@
                                     url = liburl.parse(liburl.resolve(pageUrl, url.pathname));
                                 }
 
-                                faviconsList.push(getFavicon(addProtocolToUrl(liburl.format(url))));
+                                todoList.push(getFavicon(addProtocolToUrl(liburl.format(url))));
                             }
                         }
                     }
@@ -169,8 +178,8 @@
             numberOfRedirects = 0,
             maxRedirects = config.maxRedirects,
 
-            gzip = zlib.createGunzip(),
-            deflate = zlib.createDeflate(),
+            gzip = libzlib.createGunzip(),
+            deflate = libzlib.createDeflate(),
 
             loopGetPage = function (url) {
                 // set headers
@@ -183,7 +192,7 @@
                         html;
 
                     // get default favicon http://www.example.com/favicon.ico
-                    faviconsList.push(getFavicon(liburl.parse(liburl.resolve(url.href, '/favicon.ico')), true));
+                    todoList.push(getFavicon(liburl.parse(liburl.resolve(url.href, '/favicon.ico')), true));
                     
                     if (res.statusCode === 200) {
 
@@ -206,8 +215,8 @@
                         }).on('end', function () {
                             parser.done();
 
-                            if(faviconsList.length > 0){
-                                deferred.apply(null, faviconsList)(function(result) {
+                            if(todoList.length > 0){
+                                deferred.apply(null, todoList)(function(result) {
                                     // results
                                     if(!_.isArray(result)){
                                         result = [result];
@@ -257,7 +266,7 @@
 
                     def.resolve([]);
 
-                }).setTimeout(config.timeout, function () {
+                }).setTimeout(config.timeout.page, function () {
                     console.log('Timeout page', liburl.format(pageUrl));
 
                     def.resolve([]);
@@ -273,51 +282,84 @@
 
     app.get('/', function(req, res) {
         var orgUrl,
-            url;
-
+            url,
+            cachedFavicon;
         
         if((orgUrl = req.query.url)){
             url = addProtocolToUrl(orgUrl);
 
-            console.log('Searching on page:', orgUrl);
+            console.log('Search:', orgUrl);
 
-            // Get all the favicons and choose the biggest.
+            deferred(readFaviconFromCache(url))(function(result) {
+                if(result){
+                    // Got the favicon from cache
+                    console.log('Cache:', orgUrl);
 
-            deferred(getPage(url))(function(results){
-                // results
-                var favicon,
-                    length = 0;
-
-                results.forEach(function(fav, index) {
-                    var l = fav.length;
-
-                    if(l > length){
-                        favicon = fav;
-                        length = l;
-                    }
-                });
-
-                if(favicon && favicon.buffer){
                     res.writeHead(200, {
-                        'Content-Type': favicon.mimetype,
-                        'Content-Length': favicon.length
+                        'Content-Type': result.contenttype,
+                        'Content-Length': result.length
                     });
 
-                    res.end(favicon.buffer);
-                } else {
-                    res.status(404);
-                    res.end();
-                }
+                    res.end(result.buffer);
 
-            }, function(error){
+                } else {
+                    // Get all the favicons from the internet and choose the biggest.
+                    deferred(getPage(url))(function(results){
+                        // results
+                        var favicon,
+                            length = 0;
+
+                        results.forEach(function(fav, index) {
+                            var l = fav.length;
+
+                            if(l > length){
+                                favicon = fav;
+                                length = l;
+                            }
+                        });
+
+                        if(favicon && favicon.buffer){
+                            writeFaviconToCache(url, favicon);
+
+                            console.log('Internet:', orgUrl);
+
+                            res.writeHead(200, {
+                                'Content-Type': favicon.contenttype,
+                                'Content-Length': favicon.length
+                            });
+
+                            res.end(favicon.buffer);
+
+                        } else {
+                            // Default favicon
+                            console.log('Default:', orgUrl);
+
+                            res.writeHead(200, {
+                                'Content-Type': config.defaultFavicon.contenttype,
+                                'Content-Length': defaultFavicon.length
+                            });
+
+                            res.end(defaultFavicon);
+                        }
+
+                    }, function(error){
+                        // error
+
+                        console.error('ERROR: Ooops');
+                        console.error(error);
+
+                        res.status(500);
+                        res.end();
+                    });
+                }
+            },
+            function(error) {
                 // error
 
-                console.error('ERROR: Ooops');
-                console.error(error);
-
-                res.status(500);
-                res.end();
+                console.log('Here error', error);
             });
+
+                
         } else {
             console.error('ERROR: url missing');
 
@@ -326,11 +368,134 @@
         }
     });
 
-    // app.get('/test.html', function(req, res) {
-    //     var html = ''
-    // });
+    function contenttypeToPath(host, contenttype){
+        var fileformat = config.contenttypes[contenttype],
+            filename = host + '.' + fileformat;
 
-    app.listen(config.server.port, config.server.host);
+        return libpath.join(config.cachePath, filename);
+    }
 
-    console.log('Listening on port:', config.server.port, 'host:', config.server.host);
+    function fileformatToPath(host, fileformat){
+        var filename = host + '.' + fileformat;
+
+        return libpath.join(config.cachePath, filename);
+    }
+
+    function writeFaviconToCache (url, favicon) {
+        var path = contenttypeToPath(url.host, favicon.contenttype);
+
+        libfs.writeFile(path, favicon.buffer, function(error) {
+            if(error){
+                console.log('Error caching favicon:', error, path);
+            }
+        });
+    }
+
+    function readFaviconFromCache(url) {
+        var def = deferred(),
+            host = url.host,
+            todoList = [],
+            findFaviconInCache = function (path, fileformat) {
+                var def = deferred();
+
+                libfs.exists(path, function(exists) {
+                    if(exists){
+                        def.resolve([path, fileformat]);
+
+                    } else {
+                        def.resolve();
+                    }
+                });
+
+                return def.promise;  
+            };
+
+        _.values(config.contenttypes).forEach(function (fileformat) {
+            var path = fileformatToPath(host, fileformat);
+            todoList.push(findFaviconInCache(path, fileformat));
+        });
+
+        deferred.apply(null, todoList)(function(results) {
+            var path,
+                fileformat,
+                fileformats = _.invert(config.contenttypes),
+                buffer;
+
+            results.forEach(function (p) {
+                if(p){
+                    path = p[0];
+                    fileformat = p[1];
+                }
+            });
+
+            if(path){
+                buffer = libfs.readFileSync(path);
+
+                def.resolve({
+                    buffer: buffer,
+                    length: buffer.length,
+                    contenttype: fileformats[fileformat],
+                    url: url
+                });
+            } else {
+                def.resolve(false);
+            }
+
+        }, function(error) {
+            console.log('readFaviconFromCache', error);
+
+            def.resolve(false);
+        });
+
+        return def.promise;
+    }
+
+    function cacheDirectoryExists(){
+        var def = deferred(),
+            path = config.cachePath;
+
+        libfs.exists(path, function(exists) {
+            if(!exists){
+                libfs.mkdir(config.cachePath, function() {
+                    console.log('Making cache directory:', path);
+                    def.resolve();
+                });
+
+            } else {
+                console.log('Cache directory exists:', path);
+                def.resolve();
+            }
+        });
+
+        return def.promise;
+    }
+
+    function readDefaultFavicon () {
+        var def = deferred(),
+            path = libpath.join(__dirname, config.defaultFavicon.path);
+
+        libfs.readFile(path, function (error, data) {
+            if(!error){
+                defaultFavicon = data;
+
+                def.resolve();
+            } else {
+                throw new Error('Can\'t find default favicon: ' + path);
+            }
+        });
+
+        return def.promise;
+    }
+
+    deferred(
+        cacheDirectoryExists(),
+        readDefaultFavicon()
+    )(function (results) {
+        app.listen(config.server.port, config.server.host);
+
+        console.log('Listening on port:', config.server.port, 'host:', config.server.host);
+    }, function(error) {
+        console.log('Oops!', error);
+    });
+
 }());

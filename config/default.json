@@ -3,9 +3,17 @@
         "host": "localhost",
         "port": 8080
     },
-    "cache": "/tmp/favicon-as-a-server",
+    "cachePath": "/tmp/favicon-as-a-server",
+    "defaultFavicon": { 
+        "path": "config/favicon.ico",
+        "contenttype": "image/x-icon"
+    },
+    
 
-    "timeout": 60000,
+    "timeout": {
+        "page": 60000,
+        "favicon": 60000
+    },
     "maxRedirects": 3,
     "headers": { 
         "cache-control": "max-age=0",
@@ -15,10 +23,10 @@
     },
 
     "contenttypes": {
-        "image/x-icon": true,
-        "image/png": true,
-        "image/vnd.microsoft.icon": true,
-        "image/gif": true
+        "image/vnd.microsoft.icon": "ico",
+        "image/x-icon": "ico",
+        "image/png": "png",
+        "image/gif": "gif"
     },
 
     "elementtypes": [

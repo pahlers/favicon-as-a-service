@@ -280,6 +280,9 @@
         return def.promise;
     }
 
+    app.use('/test', express.static(__dirname+'/test'));
+    app.use('/test', express.directory(__dirname + '/test'));
+
     app.get('/', function(req, res) {
         var orgUrl,
             url,

@@ -39,7 +39,7 @@ http://localhost:8080/?url=www.google.com
         "contenttype": "image/x-icon"
     },
     
-
+    "serveExamples": true,
     "timeout": {
         "page": 60000,
         "favicon": 60000
@@ -68,6 +68,11 @@ http://localhost:8080/?url=www.google.com
     ]
 }
 ```
+
+## Thanks
+
+Big thanks to:
+* Ron Thijssen, <https://github.com/ronthijssen>
 
 ## License
 

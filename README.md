@@ -22,7 +22,7 @@ Express server listening on port 8080
 Open a browser and go to:
 
 ```
-http://localhost:8080/www.google.com
+http://localhost:8080/?url=www.google.com
 ```
 
 ## Settings

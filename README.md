@@ -69,11 +69,6 @@ http://localhost:8080/?url=www.google.com
 }
 ```
 
-## Todo
-* scale favicons on the fly
-* return 304
-* remove cached files after a date
-
 ## Thanks
 
 Big thanks to:

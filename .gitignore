@@ -10,3 +10,5 @@ test/topsites100dutch.html
 *.sublime-project
 
 *.sublime-workspace
+
+.idea

@@ -11,8 +11,8 @@
     
 
     "timeout": {
-        "page": 60000,
-        "favicon": 60000
+        "page": 120000,
+        "favicon": 30000
     },
     "maxRedirects": 3,
     "headers": { 

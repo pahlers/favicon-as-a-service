@@ -69,9 +69,15 @@
                         contenttype = res.headers['content-type'];
 
                     if (res.statusCode === 200) {
+
+                        // Some developers find content types as "image/png;charset=UTF-8" better, I disagree.
+                        if(contenttype){
+                            contenttype = contenttype.split(';')[0].trim();
+                        }
+
                         if (contenttypes[contenttype] || defaultFavicon) {
                             if (defaultFavicon) {
-                                // Making an educated guess that it must be always a contenttype 'image/x-icon'.
+                                // Making an educated guess that it must be always a content-type 'image/x-icon'.
                                 contenttype = 'image/x-icon';
                             }
 
@@ -88,6 +94,8 @@
                                 });
                             });
                         } else {
+                            console.info('Info: found an unsupported content-type', liburl.format(url), contenttype);
+
                             def.resolve({});
                         }
 
@@ -123,7 +131,7 @@
                     def.resolve({});
 
                 }).setTimeout(config.timeout.favicon, function() {
-                    console.info('Timeout favicon', liburl.format(url));
+                    console.info('Info: timeout favicon', liburl.format(url));
 
                     def.resolve({});
                     this.abort();
@@ -263,7 +271,7 @@
                     def.resolve([]);
 
                 }).setTimeout(config.timeout.page, function() {
-                    console.info('Timeout page', liburl.format(pageUrl));
+                    console.info('Info: timeout page', liburl.format(pageUrl));
 
                     def.resolve([]);
                     this.abort();
@@ -295,7 +303,7 @@
             }, function(error) {
                 def.resolve(false);
 
-                console.error('ERROR: writeFaviconToCache', path, error);
+                console.error('Error: writeFaviconToCache', path, error);
             });
         });
 
@@ -313,7 +321,7 @@
             } else {
                 def.resolve(false);
 
-                console.error('ERROR: readFavicon', path, error);
+                console.error('Error: readFavicon', path, error);
             }
         });
 
@@ -330,7 +338,7 @@
             } else {
                 def.resolve();
 
-                console.error('ERROR: statsFavicon', path, error);
+                console.error('Error: statsFavicon', path, error);
             }
         });
 
@@ -347,7 +355,7 @@
             } else {
                 def.resolve();
 
-                console.error('ERROR: contenttypeFavicon', path, error);
+                console.error('Error: contenttypeFavicon', path, error);
             }
         });
 
@@ -386,7 +394,7 @@
                 }, function(error) {
                     def.resolve(false);
 
-                    console.error('ERROR: readFaviconFromCache', path, error);
+                    console.error('Error: readFaviconFromCache', path, error);
                 });
 
             } else {
@@ -406,14 +414,14 @@
             if (!exists) {
                 // Doesn't exist, make one!
                 libfs.mkdir(config.cachePath, function() {
-                    console.info('Making cache directory:', path);
+                    console.info('Info: making cache directory:', path);
 
                     def.resolve();
                 });
 
             } else {
                 // Does exist, doing nothing.
-                console.info('Cache directory exists:', path);
+                console.info('Info: cache directory exists:', path);
 
                 def.resolve();
             }
@@ -518,7 +526,7 @@
                                 res.end(favicon.buffer);
 
                             }, function(error) {
-                                console.warn('ERROR: Didn\'t write to cache.', error);
+                                console.warn('Warn: didn\'t write to cache.', error);
 
                                 res.writeHead(200, {
                                     'Content-Type': favicon.contenttype,
@@ -567,10 +575,10 @@
         // Second: start the webservice.
         app.listen(config.server.port, config.server.host);
 
-        console.info('Listening on port:', config.server.port, 'host:', config.server.host);
+        console.info('Info: listening on port:', config.server.port, 'host:', config.server.host);
 
     }, function(error) {
-        console.error('ERROR: startup service', error);
+        console.error('Error: startup service', error);
     });
 
 }());

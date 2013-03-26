@@ -81,7 +81,7 @@ http://localhost:8080/?url=www.google.com
 
 ## Todo
 * remove cached files after a date
-* scale favicons on the fly
+* scale favicons on the fly (imagemagick)
 
 ## Thanks
 

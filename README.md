@@ -70,9 +70,10 @@ http://localhost:8080/?url=www.google.com
 ```
 
 ## Todo
-* scale favicons on the fly
+* implement mime-magic
 * return 304
 * remove cached files after a date
+* scale favicons on the fly
 
 ## Thanks
 

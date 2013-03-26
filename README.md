@@ -14,7 +14,7 @@ Run the app:
 
 ```
 $ node app
-Express server listening on port 8080
+Listening on port: 8080 host: localhost
 ```
 
 ## Usage
@@ -44,31 +44,31 @@ http://localhost:8080/?url=www.google.com
         "port": 8080
     },
     "cachePath": "/tmp/favicon-as-a-server",
-    "defaultFavicon": { 
+    "defaultFavicon": {
         "path": "config/favicon.ico",
         "contenttype": "image/x-icon"
     },
-    
+    "etagSalt": "favicon-as-a-server",
+
     "serveExamples": true,
     "timeout": {
-        "page": 60000,
-        "favicon": 60000
+        "page": 120000,
+        "favicon": 30000
     },
     "maxRedirects": 3,
-    "headers": { 
+
+    "headers": {
         "cache-control": "max-age=0",
         "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_2) AppleWebKit/537.35 (KHTML, like Gecko) Chrome/27.0.1444.3 Safari/537.35",
         "accept-encoding": "gzip,deflate"
     },
-
     "contenttypes": {
-        "image/vnd.microsoft.icon": "ico",
-        "image/x-icon": "ico",
-        "image/png": "png",
-        "image/gif": "gif"
+        "image/vnd.microsoft.icon": true,
+        "image/x-icon": true,
+        "image/png": true,
+        "image/gif": true
     },
-
     "elementtypes": [
         "msapplication-TileImage",
         "icon",

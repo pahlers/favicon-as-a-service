@@ -122,7 +122,7 @@
                     console.log('Timeout favicon', liburl.format(url));
 
                     def.resolve({});
-                    this.end();
+                    this.abort();
                 });
             };
 

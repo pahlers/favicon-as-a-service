@@ -1,9 +1,20 @@
 {
   "name": "favicon-as-a-service",
-  "description": "Webservice for favicons",
-  "version": "0.0.1",
-  "private": true,
-  
+  "version": "0.1.0",
+  "description": "A Node webservice for favicons.",
+  "main": "app.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eonlepapillon/favicon-as-a-service"
+  },
+  "keywords": [
+    "favicons",
+    "webservice",
+    "Node"
+  ],
+  "author": "Peter Ahlers (eonlepapillon)",
+  "license": "MIT",
+
   "dependencies": {
     "express": "3.x",
     "config": "0.4.x",

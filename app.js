@@ -2,17 +2,21 @@
     'use strict';
     /*jshint node:true*/
 
+    // External modules
     var express = require('express'),
         deferred = require('deferred'),
         htmlparser = require('htmlparser2'),
         config = require('config'),
         _ = require('underscore'),
+        mime = require('mime-magic'),
+        md5 = require('MD5'),
 
+
+        // Node modules
         liburl = require('url'),
         libfs = require('fs'),
         libpath = require('path'),
         libzlib = require('zlib'),
-
         protocols = {
             http: require('http'),
             https: require('https')
@@ -119,7 +123,7 @@
                     def.resolve({});
 
                 }).setTimeout(config.timeout.favicon, function() {
-                    console.log('Timeout favicon', liburl.format(url));
+                    console.info('Timeout favicon', liburl.format(url));
 
                     def.resolve({});
                     this.abort();
@@ -213,13 +217,13 @@
                             parser.done();
 
                             if (todoList.length > 0) {
-                                deferred.apply(null, todoList)(function(result) {
+                                deferred.apply(null, todoList)(function(results) {
                                     // Try to get all the favicons.
-                                    if (!_.isArray(result)) {
-                                        result = [result];
+                                    if (!_.isArray(results)) {
+                                        results = [results];
                                     }
 
-                                    def.resolve(result);
+                                    def.resolve(results);
 
                                 }, function(error) {
                                     def.resolve([]);
@@ -259,7 +263,7 @@
                     def.resolve([]);
 
                 }).setTimeout(config.timeout.page, function() {
-                    console.log('Timeout page', liburl.format(pageUrl));
+                    console.info('Timeout page', liburl.format(pageUrl));
 
                     def.resolve([]);
                     this.abort();
@@ -272,90 +276,122 @@
         return def.promise;
     }
 
-    function fileformatToPath(host, fileformat) {
-        // Make a path from a hostname and file format
-        var filename = host + '.' + fileformat;
-
-        return libpath.join(config.cachePath, filename);
-    }
-
-    function contenttypeToPath(host, contenttype) {
-        // Make a path from a hostname and content-type
-        var fileformat = config.contenttypes[contenttype],
-            filename = host + '.' + fileformat;
-
-        return libpath.join(config.cachePath, filename);
-    }
-
     function writeFaviconToCache(host, favicon) {
-        // Write the favicon to the cache
-        var path = contenttypeToPath(host, favicon.contenttype);
+        var def = deferred(),
+            path = libpath.join(config.cachePath, host);
 
+        // Write the favicon to the cache
         libfs.writeFile(path, favicon.buffer, function(error) {
-            if (error) {
-                console.log('Error caching favicon:', error, path);
+
+            //Get mtime for the headers last-modfied and etag
+            deferred(statsFavicon(path))(function(results) {
+                var mtime = results.mtime.toString().trim();
+
+                def.resolve({
+                    lastmodified: mtime,
+                    etag: md5(mtime + config.etagSalt)
+                });
+
+            }, function(error) {
+                def.resolve(false);
+
+                console.error('ERROR: writeFaviconToCache', path, error);
+            });
+        });
+
+        return def.promise;        
+    }
+
+    function readFavicon(path) {
+        var def = deferred();
+
+        // Read favicon.
+        libfs.readFile(path, function(error, data) {
+            if (!error) {
+                def.resolve(data);
+
+            } else {
+                def.resolve(false);
+
+                console.error('ERROR: readFavicon', path, error);
             }
         });
+
+        return def.promise;
+    }
+
+    function statsFavicon(path) {
+        var def = deferred();
+
+        libfs.stat(path, function(error, stats) {
+            if(!error){
+                def.resolve(stats);
+
+            } else {
+                def.resolve();
+
+                console.error('ERROR: statsFavicon', path, error);
+            }
+        });
+
+        return def.promise;
+    }
+
+    function contenttypeFavicon(path) {
+        var def = deferred();
+
+        mime(path, function(error, type) {
+            if(!error) {
+                def.resolve(type);
+
+            } else {
+                def.resolve();
+
+                console.error('ERROR: contenttypeFavicon', path, error);
+            }
+        });
+
+        return def.promise;
     }
 
     function readFaviconFromCache(url) {
         var def = deferred(),
             host = url.host,
-            todoList = [],
+            path = libpath.join(config.cachePath, host);
 
-            findFaviconInCache = function(path, fileformat) {
-                var def = deferred();
+        // Check if favicon exists.
+        libfs.exists(path, function(exists) {
+            if(exists){
 
-                libfs.exists(path, function(exists) {
-                    if (exists) {
-                        def.resolve([path, fileformat]);
+                // Get favicon, stats and content-type.
+                deferred(
+                    readFavicon(path),
+                    statsFavicon(path),
+                    contenttypeFavicon(path)
+                )(function(results) {
+                    var buffer = results[0],
+                        stats = results[1],
+                        contenttype = results[2],
+                        mtime = stats.mtime.toString();
 
-                    } else {
-                        def.resolve();
-                    }
-                });
+                    def.resolve({
+                        buffer: buffer,
+                        length: stats.size,
+                        lastmodified: mtime,
+                        etag: md5(mtime + config.etagSalt),
+                        contenttype: contenttype,
+                        url: liburl.format(url)
+                    });
 
-                return def.promise;
-            };
+                }, function(error) {
+                    def.resolve(false);
 
-        // Make a list of favicons with every fileformat to try.
-        _.values(config.contenttypes).forEach(function(fileformat) {
-            var path = fileformatToPath(host, fileformat);
-
-            todoList.push(findFaviconInCache(path, fileformat));
-        });
-
-        deferred.apply(null, todoList)(function(results) {
-            var path,
-                fileformat,
-                fileformats = _.invert(config.contenttypes),
-                buffer;
-
-            results.forEach(function(p) {
-                if (p) {
-                    path = p[0];
-                    fileformat = p[1];
-                }
-            });
-
-            if (path) {
-                // Favicon founded, send it back.
-                buffer = libfs.readFileSync(path);
-
-                def.resolve({
-                    buffer: buffer,
-                    length: buffer.length,
-                    contenttype: fileformats[fileformat],
-                    url: url
+                    console.error('ERROR: readFaviconFromCache', path, error);
                 });
 
             } else {
-                // No favicon found.
                 def.resolve(false);
             }
-
-        }, function(error) {
-            def.resolve(false);
         });
 
         return def.promise;
@@ -370,14 +406,14 @@
             if (!exists) {
                 // Doesn't exist, make one!
                 libfs.mkdir(config.cachePath, function() {
-                    console.log('Making cache directory:', path);
+                    console.info('Making cache directory:', path);
 
                     def.resolve();
                 });
 
             } else {
                 // Does exist, doing nothing.
-                console.log('Cache directory exists:', path);
+                console.info('Cache directory exists:', path);
 
                 def.resolve();
             }
@@ -391,16 +427,18 @@
             path = libpath.join(__dirname, config.defaultFavicon.path);
 
         // Read default favicon.
-        libfs.readFile(path, function(error, data) {
-            if (!error) {
+        deferred(readFavicon(path))(function(results) {
+            if(results){
                 // Save the data to the app-global 'defaultFavicon'.
-                defaultFavicon = data;
-
+                defaultFavicon = results;
                 def.resolve();
 
             } else {
                 throw new Error('Can\'t find default favicon: ' + path);
             }
+
+        }, function(error) {
+            throw new Error('Can\'t find default favicon: ' + path);
         });
 
         return def.promise;
@@ -422,19 +460,32 @@
             // Get favicon.
             url = addProtocolToUrl(orgUrl);
 
-            console.log('Search:', orgUrl);
+            console.info('Search:', orgUrl);
 
-            deferred(readFaviconFromCache(url))(function(result) {
-                if (result) {
+            // Try to get the favicon from cache
+            deferred(readFaviconFromCache(url))(function(results) {
+                if (results) {
                     // Got the favicon from cache
-                    console.log('Cache:', orgUrl);
+                    var ifModifiedSince = req.get('If-Modified-Since'),
+                        ifNoneMatch = req.get('If-None-Match');
 
-                    res.writeHead(200, {
-                        'Content-Type': result.contenttype,
-                        'Content-Length': result.length
-                    });
+                    if(ifModifiedSince === results.lastmodified && ifNoneMatch === results.etag){
+                        console.info('Cache 304:', orgUrl);
+                        
+                        res.status(304);
+                        res.end();
 
-                    res.end(result.buffer);
+                    } else {
+                        console.info('Cache 200:', orgUrl);
+
+                        res.writeHead(200, {
+                            'Content-Type': results.contenttype,
+                            'Content-Length': results.length,
+                            'Last-Modified': results.lastmodified,
+                            'ETag': results.etag
+                        });
+                        res.end(results.buffer);
+                    }
 
                 } else {
                     // Get all the favicons from the internet and choose the biggest.
@@ -453,21 +504,33 @@
                         });
 
                         if (favicon && favicon.buffer) {
+                            console.info('Internet:', orgUrl);
+
                             // We have got a favicon! Save it and send it to our customers.
-                            writeFaviconToCache(url.host, favicon);
+                            deferred(writeFaviconToCache(url.host, favicon))(function(results) {
+                                res.writeHead(200, {
+                                    'Content-Type': favicon.contenttype,
+                                    'Content-Length': favicon.length,
+                                    'Last-Modified': results.lastmodified,
+                                    'ETag': results.etag
+                                });
 
-                            console.log('Internet:', orgUrl);
+                                res.end(favicon.buffer);
 
-                            res.writeHead(200, {
-                                'Content-Type': favicon.contenttype,
-                                'Content-Length': favicon.length
+                            }, function(error) {
+                                console.warn('ERROR: Didn\'t write to cache.', error);
+
+                                res.writeHead(200, {
+                                    'Content-Type': favicon.contenttype,
+                                    'Content-Length': favicon.length
+                                });
+
+                                res.end(favicon.buffer);
                             });
-
-                            res.end(favicon.buffer);
 
                         } else {
                             // Default favicon, because we didn't found anything.
-                            console.log('Default:', orgUrl);
+                            console.info('Default:', orgUrl);
 
                             res.writeHead(200, {
                                 'Content-Type': config.defaultFavicon.contenttype,
@@ -482,32 +545,32 @@
                         res.end();
                     });
                 }
-            },
-            function(error) {
+                
+            }, function(error) {
                 res.status(500);
                 res.end();
             });
 
         } else {
-            // /?url=http://missi.ng/url.html
+            // /?url=http://missi.ng/url.html.
             res.writeHead(300, {'Content-Type': 'text/plain'});
             res.end('/?url=http://missi.ng/url.html');
         }
 
     });
 
-    // First: prepare webservice
+    // First: prepare webservice. Check the cache directory and read the default favicon.
     deferred(
         cacheDirectoryExists(),
         readDefaultFavicon()
     )(function(results) {
-        // Second: start the webservice
+        // Second: start the webservice.
         app.listen(config.server.port, config.server.host);
 
-        console.log('Listening on port:', config.server.port, 'host:', config.server.host);
+        console.info('Listening on port:', config.server.port, 'host:', config.server.host);
 
     }, function(error) {
-        console.log('Oops!', error);
+        console.error('ERROR: startup service', error);
     });
 
 }());

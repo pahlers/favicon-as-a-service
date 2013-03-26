@@ -25,6 +25,16 @@ Open a browser and go to:
 http://localhost:8080/?url=www.google.com
 ```
 
+## Dependencies
+
+* express v3.x
+* config v0.4.x
+* deferred v0.6.x
+* htmlparser2 v2.6.x
+* underscore v1.4.x
+* mime-magic v0.4.x
+* MD5 v1.0.x
+
 ## Settings
 
 ```json
@@ -70,8 +80,6 @@ http://localhost:8080/?url=www.google.com
 ```
 
 ## Todo
-* implement mime-magic
-* return 304
 * remove cached files after a date
 * scale favicons on the fly
 

@@ -10,18 +10,27 @@
   "keywords": [
     "favicons",
     "webservice",
-    "Node"
+    "icon",
+    "crawler"
   ],
-  "author": "Peter Ahlers (eonlepapillon)",
+
+  "author": { 
+    "name": "Peter Ahlers (eonlepapillon)", 
+    "email": "eonlepapillon@gmail.com",
+  },
   "license": "MIT",
 
+  "engines": {
+    "node": "~0.10.0"
+  },
+
   "dependencies": {
-    "express": "3.x",
-    "config": "0.4.x",
-    "deferred": "0.6.x",
-    "htmlparser2": "2.6.x",
+    "express": "~3.1.0",
+    "config": "~0.4.21",
+    "deferred": "~0.6.3",
+    "htmlparser2": "~2.6.0",
     "underscore": "1.4.x",
     "mime-magic": "0.4.x",
-    "MD5": "1.0.x"
+    "MD5": "~1.0.3"
   }
 }

@@ -2,7 +2,7 @@
   "name": "favicon-as-a-service",
   "version": "0.1.0",
   "description": "A Node webservice for favicons.",
-  "main": "app.js",
+  "main": "favicon-as-a-service.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/eonlepapillon/favicon-as-a-service"

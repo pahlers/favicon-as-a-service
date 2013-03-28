@@ -497,19 +497,33 @@
 
                 } else {
                     // Get all the favicons from the internet and choose the biggest.
-                    deferred(getPage(url))(function(results) {
+                    var todo = getPage,
+                        rootFavicon = false;
+
+                    if(config.onlyRootFavicons){
+                        todo = getFavicon;
+                        rootFavicon = true;
+                        url = liburl.parse(liburl.resolve(url.href, '/favicon.ico'));
+                    }
+
+                    deferred(todo(url, rootFavicon))(function(results) {
                         var favicon,
                             length = 0;
 
-                        // Check the length of the buffer to get the largest favicon.
-                        results.forEach(function(fav, index) {
-                            var l = fav.length;
+                        if(config.onlyRootFavicons){
+                            favicon = results;
+                            
+                        } else {
+                            // Check the length of the buffer to get the largest favicon.
+                            results.forEach(function(fav, index) {
+                                var l = fav.length;
 
-                            if (l > length) {
-                                favicon = fav;
-                                length = l;
-                            }
-                        });
+                                if (l > length) {
+                                    favicon = fav;
+                                    length = l;
+                                }
+                            });
+                        }
 
                         if (favicon && favicon.buffer) {
                             console.info('Internet:', orgUrl);

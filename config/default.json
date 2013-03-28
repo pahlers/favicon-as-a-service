@@ -10,8 +10,8 @@
     },
     "etagSalt": "favicon-as-a-server",
 
-    "onlyRootFavicons": true,
-    
+    "onlyRootFavicons": false,
+
     "serveExamples": true,
     "timeout": {
         "page": 120000,

@@ -13,7 +13,7 @@ $ npm install
 Run the app:
 
 ```
-$ node app
+$ node favicon-as-a-service
 Listening on port: 8080 host: localhost
 ```
 
